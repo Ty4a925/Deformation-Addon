@@ -1,18 +1,11 @@
 local IsValid = IsValid
 
 TOOL.Category = "Deformation"
-TOOL.Name = "Make deformable"
-
-if CLIENT then
-    language.Add("Tool.makedeform.name", "Make Deformable")
-    language.Add("Tool.makedeform.desc", "Make objects deformable")
-
+TOOL.Name = "#tool.makedeform.name"
+    
     TOOL.Information = {
         { name = "left" },
     }
-
-    language.Add("Tool.makedeform.left", "Make Object Deformable")
-end
 
 function TOOL:LeftClick(trace)
     local ent = trace.Entity
