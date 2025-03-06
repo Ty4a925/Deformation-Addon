@@ -1,0 +1,11 @@
+name: Linter
+
+on:
+  pull_request:
+    paths:
+    - 'lua/**'
+  workflow_dispatch:
+
+jobs:
+  Lint:
+    uses: FPtje/GLuaFixer/.github/workflows/glualint.yml@master
