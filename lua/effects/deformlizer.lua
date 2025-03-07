@@ -1,47 +1,28 @@
-local math = math
-
-local math_rand = math.Rand
-local math_random = math.random
+local gravity_convar = GetConVar("sv_gravity")
 
 function EFFECT:Init(data)
-    
-    local GRAVITY = Vector(0, 0, GetConVarNumber("sv_gravity"))
-
-    self.CarEnt = data:GetEntity()
-    self.Normal = data:GetNormal()
-    self.Position = data:GetOrigin()
-
-    local AddVel = self.CarEnt:GetPhysicsObject():GetVelocity()
-	
+	local car = data:GetEntity()
+	local gravity = Vector(0, 0, gravity_convar:GetInt())
 	local emitter = ParticleEmitter(self.Position)
+	local carpos = car:GetPos()
 
-        local pospos = self.CarEnt:GetPos()
-		local physmesh = self.CarEnt.DeformedVertc
-		for _, vertex in ipairs(physmesh) do
-			local vertpos = vertex.pos
+	for _, vertex in ipairs(car.DeformedVertc) do
+		local particle = emitter:Add("sprites/blueglow2", carpos + vertex.pos)
+		particle:SetVelocity((car:WorldToLocal(carpos) + vertex.pos):GetNormalized() * 225)
+		particle:SetAirResistance(0)
+		particle:SetGravity(-gravity * 0.5)
+		particle:SetCollide(1)
+		particle:SetBounce(1)
+		particle:SetDieTime(1)
+		particle:SetStartAlpha(25)
+		particle:SetEndAlpha(0)
+		particle:SetStartSize(0.1)
+		particle:SetEndSize(15)
+		particle:SetRoll(math.Rand(-25, 25))
+		particle:SetRollDelta(math.Rand(-0.05, 0.05))
+	end
 
-			local particle = emitter:Add("sprites/blueglow2", pospos+vertpos )
-
-			particle:SetVelocity( (self.CarEnt:WorldToLocal(pospos) + vertpos):GetNormalized()*225 )
-			particle:SetAirResistance( 0 )
-
-			particle:SetGravity(-GRAVITY*0.5)
-			particle:SetCollide(1)
-			particle:SetBounce(1)
-
-			particle:SetDieTime( 1 )
-
-			particle:SetStartAlpha( 25 )
-			particle:SetEndAlpha( 0 )
-
-			particle:SetStartSize( 0.1 )
-			particle:SetEndSize( 15 )
-
-			particle:SetRoll( math_rand( -25, 25 ) )
-			particle:SetRollDelta( math_rand( -0.05, 0.05 ) )
-		end
-
-		emitter:Finish()
+	emitter:Finish()
 end
 
 function EFFECT:Think()
@@ -49,4 +30,5 @@ function EFFECT:Think()
 end
 
 function EFFECT:Render()
+
 end
