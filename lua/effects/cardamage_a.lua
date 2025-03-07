@@ -2,8 +2,8 @@ local color_smoke = Color(200, 200, 200)
 local gravity_convar = GetConVar("sv_gravity")
 
 function EFFECT:Init(data)
-    local normal = data:GetNormal()
-    local pos = data:GetOrigin()
+	local normal = data:GetNormal()
+	local pos = data:GetOrigin()
 
 	local gravity = Vector(0, 0, gravity_convar:GetInt())
 	local particlepos = pos - normal * 5
