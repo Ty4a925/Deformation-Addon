@@ -4,7 +4,7 @@ local mesh = mesh
 local math = math
 local net = net
 
-local ipairs = ipairs
+local Material = Material
 local Vector = Vector
 local Mesh = Mesh
 
@@ -26,7 +26,11 @@ ENT.DeformedVertc = {}
 
 --BASA
 ENT.IsDEFORMMESH = true
+ENT.FromRENDER = false
 ENT.MyMESH = nil
+ENT.MAT = Material("models/shiny")
+
+local model = IsMounted("cstrike") and "models/props/de_nuke/car_nuke_red.mdl" or "models/props_interiors/Furniture_Couch01a.mdl"
 
 function ENT:SpawnFunction( ply, tr, ClassName )
 	if ( !tr.Hit ) then return end
@@ -39,7 +43,7 @@ function ENT:SpawnFunction( ply, tr, ClassName )
 	local ent = ents.Create( ClassName )
 	ent:SetPos( SpawnPos )
     ent:SetAngles( SpawnAng )
-	ent:SetModel("models/props/de_nuke/car_nuke_red.mdl")
+	ent:SetModel( model )
 	ent:Spawn()
 	ent:Activate()
 
@@ -59,7 +63,9 @@ function ENT:Initialize()
     self.MYSIZEOBB = math_Clamp( ( obbmax - oobmin ):Length() , 1 , 50 )
 
     if CLIENT then
-        local mymesh = self.MyMESH or self:GetPhysicsObject():GetMesh()
+        local MESHMODEL = util.GetModelMeshes(self:GetModel())[1]
+        local mymesh = self.MyMESH or (self.FromRENDER and MESHMODEL.triangles or self:GetPhysicsObject():GetMesh())
+        self:UPDATEMAT()
 
         self:GenerateMesh(mymesh)
         self.DeformedVertc = mymesh
@@ -67,6 +73,11 @@ function ENT:Initialize()
 
         --print(#mymesh)
     end
+end
+
+function ENT:UPDATEMAT()
+    local MESHMODEL = util.GetModelMeshes(self:GetModel())[1]
+    self.MAT = self.FromRENDER and Material(MESHMODEL.material) or mat
 end
 
 if SERVER then 
@@ -179,8 +190,6 @@ local function generateNormals(vertices)
 
 end
 
-local mat = Material("models/shiny")
-
 net.Receive("Deformation_Apply", function()
     local hitent = net.ReadEntity()
     local hitPos = net.ReadVector()
@@ -211,16 +220,17 @@ net.Receive("Deformation_Apply", function()
 end)
 
 function ENT:GenerateMesh(mesh)
-    mesh = generateUV(mesh, 0.05, Vector, Angle, WorldToLocal)
+    if !self.FromRENDER then mesh = generateUV(mesh, 0.01, Vector, Angle, WorldToLocal) end
     generateNormals(mesh)
     
     self.RENDER_MESH = Mesh()
     self.RENDER_MESH:BuildFromTriangles(mesh)
 end
 
+local mat = Material("models/shiny")
 function ENT:GetRenderMesh()
     if !self.RENDER_MESH then return end
-    return { Mesh = self.RENDER_MESH, Material = mat }
+    return { Mesh = self.RENDER_MESH, Material = self.MAT or mat }
 end
 
 function ENT:SubdivideMesh(vertices)
