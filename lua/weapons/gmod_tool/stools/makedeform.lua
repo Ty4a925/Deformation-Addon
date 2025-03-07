@@ -3,14 +3,29 @@ local IsValid = IsValid
 TOOL.Category = "Deformation"
 TOOL.Name = "#tool.makedeform.name"
     
-    TOOL.Information = {
-        { name = "left" },
-    }
+TOOL.Information = {
+    { name = "left" },
+    { name = "right" }
+}
 
-function TOOL:LeftClick(trace)
-    local ent = trace.Entity
-    if not IsValid(ent) or ent.IsDEFORMMESH or ent:IsPlayer() then return false end
+if SERVER then
+    util.AddNetworkString("Deformation_FromRENDER")
+else
+    -- спешка
+    net.Receive("Deformation_FromRENDER", function()
+        local hitent = net.ReadEntity()
 
+        hitent.FromRENDER = true
+        local MESHMODEL = util.GetModelMeshes(hitent:GetModel())[1]
+        local mymesh = hitent.MyMESH or (hitent.FromRENDER and MESHMODEL.triangles or hitent:GetPhysicsObject():GetMesh())
+
+        hitent:GenerateMesh(mymesh)
+        hitent.DeformedVertc = mymesh
+        hitent:UPDATEMAT()
+    end)
+end
+
+local function MAKEDEFORMA(ply, ent, bool)
     local dent = ents.Create("ent_deformmesh")
 
     dent:SetModel(ent:GetModel())
@@ -21,6 +36,12 @@ function TOOL:LeftClick(trace)
 
     dent:Spawn()
     dent:Activate()
+
+    if bool then
+        net.Start("Deformation_FromRENDER")
+            net.WriteEntity(dent)
+        net.Broadcast()
+    end
 
     local phys = ent:GetPhysicsObject()
     local phys1 = dent:GetPhysicsObject()
@@ -33,7 +54,7 @@ function TOOL:LeftClick(trace)
 
     undo.Create("prop")
         undo.AddEntity(dent)
-        undo.SetPlayer(self:GetOwner())
+        undo.SetPlayer(ply)
     undo.Finish()
 
     local ef = EffectData()
@@ -41,13 +62,27 @@ function TOOL:LeftClick(trace)
         ef:SetOrigin(dent:GetPos())
     util.Effect("deformlizer", ef)
 
-    ent:Remove()
+    SafeRemoveEntity(ent)
+
+    return dent
+end
+
+function TOOL:LeftClick(trace)
+    local ent = trace.Entity
+    if not IsValid(ent) or ent.IsDEFORMMESH or ent:IsPlayer() then return false end
+
+    local dent = MAKEDEFORMA(self:GetOwner(), ent, false)
 
     return true
 end
 
 function TOOL:RightClick(trace)
-    return false
+    local ent = trace.Entity
+    if not IsValid(ent) or ent.IsDEFORMMESH or ent:IsPlayer() then return false end
+
+    local dent = MAKEDEFORMA(self:GetOwner(), ent, true)
+
+    return true
 end
 
 function TOOL:Reload(trace)
