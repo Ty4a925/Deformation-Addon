@@ -57,11 +57,6 @@ local function MAKEDEFORMA(ply, ent, bool)
         undo.SetPlayer(ply)
     undo.Finish()
 
-    local ef = EffectData()
-        ef:SetEntity(dent)
-        ef:SetOrigin(dent:GetPos())
-    util.Effect("deformlizer", ef)
-
     SafeRemoveEntity(ent)
 
     return dent
