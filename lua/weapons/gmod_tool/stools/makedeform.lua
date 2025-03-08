@@ -1,3 +1,5 @@
+AddCSLuaFile()
+
 local IsValid = IsValid
 
 TOOL.Category = "Deformation"
@@ -14,6 +16,7 @@ else
     -- спешка
     net.Receive("Deformation_FromRENDER", function()
         local hitent = net.ReadEntity()
+        print(hitent)
 
         hitent.FromRENDER = true
         local MESHMODEL = util.GetModelMeshes(hitent:GetModel())[1]
@@ -38,9 +41,11 @@ local function MAKEDEFORMA(ply, ent, bool)
     dent:Activate()
 
     if bool then
-        net.Start("Deformation_FromRENDER")
-            net.WriteEntity(dent)
-        net.Broadcast()
+        timer.Simple(0, function()
+            net.Start("Deformation_FromRENDER")
+                net.WriteEntity(dent)
+            net.Broadcast()
+        end)
     end
 
     local phys = ent:GetPhysicsObject()
@@ -57,6 +62,11 @@ local function MAKEDEFORMA(ply, ent, bool)
         undo.SetPlayer(ply)
     undo.Finish()
 
+    /*local ef = EffectData()
+        ef:SetEntity(dent)
+        ef:SetOrigin(dent:GetPos())
+    util.Effect("deformlizer", ef)*/
+
     SafeRemoveEntity(ent)
 
     return dent
@@ -66,7 +76,9 @@ function TOOL:LeftClick(trace)
     local ent = trace.Entity
     if not IsValid(ent) or ent.IsDEFORMMESH or ent:IsPlayer() then return false end
 
-    local dent = MAKEDEFORMA(self:GetOwner(), ent, false)
+    if SERVER then
+        MAKEDEFORMA(self:GetOwner(), ent, false)
+    end
 
     return true
 end
@@ -75,7 +87,9 @@ function TOOL:RightClick(trace)
     local ent = trace.Entity
     if not IsValid(ent) or ent.IsDEFORMMESH or ent:IsPlayer() then return false end
 
-    local dent = MAKEDEFORMA(self:GetOwner(), ent, true)
+    if SERVER then
+        MAKEDEFORMA(self:GetOwner(), ent, true)
+    end
 
     return true
 end
