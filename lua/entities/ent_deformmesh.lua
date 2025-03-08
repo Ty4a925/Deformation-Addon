@@ -60,7 +60,7 @@ function ENT:Initialize()
     self:PhysWake()
     
     local obbmax, oobmin = self:OBBMaxs(), self:OBBMins()
-    self.MYSIZEOBB = math_Clamp( ( obbmax - oobmin ):Length() , 1 , 50 )
+    self.MYSIZEOBB = math_Clamp( ( obbmax - oobmin ):Length() , 1 , 150 )
 
     if CLIENT then
         local MESHMODEL = util.GetModelMeshes(self:GetModel())[1]
@@ -121,7 +121,7 @@ if SERVER then
                     net.WriteNormal(nv)
                     local net_WriteFloat = net.WriteFloat
                     net_WriteFloat(math.min(speed*0.005,10))
-                    net_WriteFloat(self.MYSIZEOBB)
+                    net_WriteFloat(self.MYSIZEOBB*0.3)
                 net.Broadcast()
             end
         end
