@@ -16,11 +16,26 @@ else
     -- спешка
     net.Receive("Deformation_FromRENDER", function()
         local hitent = net.ReadEntity()
-        print(hitent)
 
         hitent.FromRENDER = true
         local MESHMODEL = util.GetModelMeshes(hitent:GetModel())[1]
         local mymesh = hitent.MyMESH or (hitent.FromRENDER and MESHMODEL.triangles or hitent:GetPhysicsObject():GetMesh())
+
+        --PrintTable(mymesh)
+        -- xD goofy fix, that works
+        -- TODO:FUCK
+        for i = 1, #mymesh do
+            local vert = mymesh[i]
+            mymesh[i] = {
+                normal = vert.normal,
+                pos = vert.pos,
+                userdata = vert.userdata,
+                tangent = vert.tangent,
+                u = vert.u,
+                v = vert.v,
+                weights = vert.weights
+            }
+        end
 
         hitent:GenerateMesh(mymesh)
         hitent.DeformedVertc = mymesh
