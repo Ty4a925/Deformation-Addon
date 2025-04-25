@@ -81,13 +81,13 @@ function ENT:Initialize()
     self:SetMoveType(MOVETYPE_VPHYSICS)
     self:SetSolid(SOLID_VPHYSICS)
     self:PhysWake()
-    
+
     local obbmax, oobmin = self:OBBMaxs(), self:OBBMins()
     self.MYSIZEOBB = math_Clamp( ( obbmax - oobmin ):Length() , 1 , 150 )
 
     if CLIENT then
         local MESHMODEL = util.GetModelMeshes(self:GetModel())[1]
-        local mymesh = self.MyMESH or (self.FromRENDER and MESHMODEL.triangles or self:GetPhysicsObject():GetMesh())
+        local mymesh = self.MyMESH or (self.FromRENDER and MESHMODEL.verticies or self:GetPhysicsObject():GetMesh())
         self:UPDATEMAT()
 
         self:GenerateMesh(mymesh)
@@ -146,7 +146,7 @@ if SERVER then
 
                     local net_WriteFloat = net.WriteFloat
 
-                    net_WriteFloat(math.min(speed * 0.005, 10))
+                    net_WriteFloat(math.min(speed * 0.005, 20))
                     net_WriteFloat(self.MYSIZEOBB * self.SVRadiuscoef)
                 net.Broadcast()
             end
@@ -287,8 +287,10 @@ net.Receive("Deformation_Apply", function()
 end)
 
 function ENT:GenerateMesh(mesh)
-    if !self.FromRENDER then mesh = generateUV(mesh, 0.01, Vector, Angle, WorldToLocal) end
-    generateNormals(mesh)
+    if !self.FromRENDER then 
+        mesh = generateUV(mesh, 0.01, Vector, Angle, WorldToLocal)
+        generateNormals(mesh)
+    end
     
     self.RENDER_MESH = Mesh()
     self.RENDER_MESH:BuildFromTriangles(mesh)
@@ -305,19 +307,25 @@ function ENT:SubdivideMesh(vertices)
     local shitverts = {}
 
     local function SUB(v1, v2)
-        return { pos = (v1 + v2) / 2 }
+        -- xD goofy fix, that works
+
+        if !self.FromRENDER then return { pos = (a.pos + b.pos) / 2 } end
+        return {
+            pos = (v1.pos + v2.pos) / 2,
+            normal = GetNormalized(((v1.normal + v2.normal) / 2)),
+            tangent = ((v1.tangent or vector_origin) + (v2.tangent or vector_origin)) / 2,
+            u = ((v1.u or 0) + (v2.u or 0)) / 2,
+            v = ((v1.v or 0) + (v2.v or 0)) / 2,
+            userdata = (v2.userdata or 0 + v2.userdata or 0)
+        }
     end
 
     for i = 1, #vertices, 3 do
         local v1, v2, v3 = vertices[i], vertices[i+1], vertices[i+2]
 
-        local vpos = v1.pos
-        local vpos2 = v2.pos
-        local vpos3 = v3.pos
-
-        local subAB = SUB(vpos, vpos2)
-        local subBC = SUB(vpos2, vpos3)
-        local subCA = SUB(vpos3, vpos)
+        local subAB = SUB(v1, v2)
+        local subBC = SUB(v2, v3)
+        local subCA = SUB(v3, v1)
 
         shitverts[#shitverts + 1] = subAB
         shitverts[#shitverts + 1] = subBC
