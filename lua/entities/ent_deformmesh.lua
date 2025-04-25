@@ -309,7 +309,8 @@ function ENT:SubdivideMesh(vertices)
     local function SUB(v1, v2)
         -- xD goofy fix, that works
 
-        if !self.FromRENDER then return { pos = (a.pos + b.pos) / 2 } end
+        if !self.FromRENDER then return { pos = (v1.pos + v2.pos) / 2 } end
+        
         return {
             pos = (v1.pos + v2.pos) / 2,
             normal = GetNormalized(((v1.normal + v2.normal) / 2)),
