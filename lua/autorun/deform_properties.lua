@@ -17,6 +17,21 @@ properties.Add( "deform_restore_shape", {
     Action = function( self, ent )
         local MESHMODEL = util.GetModelMeshes(ent:GetModel())[1]
         local mymesh = ent.FromRENDER and MESHMODEL.triangles or ent:GetPhysicsObject():GetMesh()
+        
+        -- xD goofy fix, that works
+        for i = 1, #mymesh do
+            local vert = mymesh[i]
+            mymesh[i] = {
+                normal = vert.normal,
+                pos = vert.pos,
+                userdata = vert.userdata,
+                tangent = vert.tangent,
+                u = vert.u,
+                v = vert.v,
+                weights = vert.weights
+            }
+        end
+
         ent.DeformedVertc = mymesh
         ent:GenerateMesh(mymesh)
     end,
