@@ -35,8 +35,7 @@ local model = IsMounted("cstrike") and "models/props/de_nuke/car_nuke_red.mdl" o
 
 function ENT:SetupDataTables()
     self:NetworkVar( "Float", 0, "RadiusCOEF", { KeyName = "radiuscoef", Edit = { type = "Float", min = 0.1, max = 1, order = 1, title = "Radius Coefficent", category = "Collide"} } )
-    --self:NetworkVar( "Float", 1, "DamageCOEF", { KeyName = "damagecoef", Edit = { type = "Float", min = 0.005, max = 10, order = 2, title = "Damage Coefficent", category = "Collide"} } )
-    -- LazyTown :D
+    self:NetworkVar( "Float", 1, "DamageCOEF", { KeyName = "damagecoef", Edit = { type = "Float", min = 0.01, max = 100, order = 2, title = "Damage Coefficent", category = "Collide"} } )
 
     self:NetworkVar( "Bool", 0, "SoundTOG", { KeyName = "soundarmatura", Edit = { type = "Bool", order = 3, title = "Toggle Sound", category = "Visual & Sound"} } )
     self:NetworkVar( "Bool", 1, "EffectTOG", { KeyName = "effectarmatura", Edit = { type = "Bool", order = 4, title = "Toggle Effects", category = "Visual & Sound"} } )
@@ -44,11 +43,13 @@ function ENT:SetupDataTables()
 
     if SERVER then
         self:NetworkVarNotify( "RadiusCOEF", self.SVOptRadiuscoef )
+        self:NetworkVarNotify( "DamageCOEF", self.SVOptDamagecoef )
         self:NetworkVarNotify( "SoundTOG", self.SVOptSoundtog )
         self:NetworkVarNotify( "EffectTOG", self.SVOptEffecttog )
         self:NetworkVarNotify( "SoundTYPE", self.SVOptSoundtype )
 
         self:SetRadiusCOEF(0.2)
+        self:SetDamageCOEF(1)
         self:SetSoundTOG(true)
         self:SetEffectTOG(true)
         self:SetSoundTYPE(1)
@@ -111,7 +112,6 @@ if SERVER then
         net.Start("Deformation_Apply")
             net.WriteEntity(self)
             net.WriteVector(dmginfo:GetDamagePosition())
-            net.WriteNormal(-dmginfo:GetDamageForce())
             local net_WriteFloat = net.WriteFloat
             net_WriteFloat(math.min(dmg, 15))
             net_WriteFloat(dmg)
@@ -119,37 +119,38 @@ if SERVER then
     end
 
     function ENT:PhysicsCollide(data, phys)
-        if data.DeltaTime > 0.1 then
-            local speed = data.Speed
-            if speed >= 150 then
+        if data.DeltaTime <= 0.1 then return end
 
-                local hitpos = data.HitPos
-                
-                if self.SVEffectTog then
-                    local ef = EffectData()
-                        ef:SetEntity(self)
-                        ef:SetOrigin(hitpos)
-                        ef:SetNormal(data.HitNormal)
-                    util.Effect("cardamage_a", ef)
-                end
+        local speed = data.Speed
+        if speed >= 150 then
 
-                local math_random = math.random
-
-                if self.SVSoundTog then
-                    local sound = self.SVSoundType .. math_random(1, 3) .. ".wav"
-                    self:EmitSound(sound, 75, math_random(75, 150), speed * 0.1)
-                end
-
-                net.Start("Deformation_Apply")
-                    net.WriteEntity(self)
-                    net.WriteVector(hitpos)
-
-                    local net_WriteFloat = net.WriteFloat
-
-                    net_WriteFloat(math.min(speed * 0.005, 20))
-                    net_WriteFloat(self.MYSIZEOBB * self.SVRadiuscoef)
-                net.Broadcast()
+            local hitpos = data.HitPos
+            
+            if self.SVEffectTog then
+                local ef = EffectData()
+                    ef:SetEntity(self)
+                    ef:SetOrigin(hitpos)
+                    ef:SetNormal(data.HitNormal)
+                util.Effect("cardamage_a", ef)
             end
+
+            local math_random = math.random
+
+            if self.SVSoundTog then
+                local sound = self.SVSoundType .. math_random(1, 3) .. ".wav"
+                self:EmitSound(sound, 75, math_random(75, 150), speed * 0.1)
+            end
+
+            net.Start("Deformation_Apply")
+                net.WriteEntity(self)
+                net.WriteVector(hitpos)
+
+                local net_WriteFloat = net.WriteFloat
+
+                local coef = self.SVDamagecoef
+                net_WriteFloat(math.min(speed * 0.005 * coef, 20 * coef))
+                net_WriteFloat(self.MYSIZEOBB * self.SVRadiuscoef)
+            net.Broadcast()
         end
     end
 
@@ -196,9 +197,16 @@ if SERVER then
         self.SVRadiuscoef = newvalue
     end
 
+    function ENT:SVOptDamagecoef(_, oldvalue, newvalue)
+        if ( oldvalue == newvalue ) then return end
+
+        self.SVDamagecoef = newvalue
+    end
+
 end
 
 if SERVER then return end
+
 
 local meta = FindMetaTable("Entity")
 ENT.Draw = meta.DrawModel
@@ -286,6 +294,9 @@ net.Receive("Deformation_Apply", function()
     hitent:GenerateMesh(vertices)
 end)
 
+local metamesh = FindMetaTable("IMesh")
+local BuildFromTriangles = metamesh.BuildFromTriangles
+
 function ENT:GenerateMesh(mesh)
     if !self.FromRENDER then 
         mesh = generateUV(mesh, 0.01, Vector, Angle, WorldToLocal)
@@ -293,23 +304,26 @@ function ENT:GenerateMesh(mesh)
     end
     
     self.RENDER_MESH = Mesh()
-    self.RENDER_MESH:BuildFromTriangles(mesh)
+
+    BuildFromTriangles(self.RENDER_MESH, mesh)
 end
 
 local mat = Material("models/shiny")
 
 function ENT:GetRenderMesh()
     if !self.RENDER_MESH then return end
+
     return { Mesh = self.RENDER_MESH, Material = self.MAT or mat }
 end
 
 function ENT:SubdivideMesh(vertices)
     local shitverts = {}
+    local fromRENDER = self.FromRENDER 
 
     local function SUB(v1, v2)
         -- xD goofy fix, that works
 
-        if !self.FromRENDER then return { pos = (v1.pos + v2.pos) / 2 } end
+        if !fromRENDER then return { pos = (v1.pos + v2.pos) / 2 } end
         
         return {
             pos = (v1.pos + v2.pos) / 2,
@@ -340,6 +354,20 @@ function ENT:SubdivideMesh(vertices)
         shitverts[#shitverts + 1] = subCA
         shitverts[#shitverts + 1] = subBC
         shitverts[#shitverts + 1] = v3
+    end
+
+    -- hate
+    for i = 1, #shitverts do
+        local vert = shitverts[i]
+        shitverts[i] = {
+            normal = vert.normal,
+            pos = vert.pos,
+            userdata = vert.userdata,
+            tangent = vert.tangent,
+            u = vert.u,
+            v = vert.v,
+            weights = vert.weights
+        }
     end
 
     return shitverts
